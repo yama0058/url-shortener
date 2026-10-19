@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            font-family: Arial, sans-serif;
+            background: #f3f6fb;
+            color: #202b3c;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 36px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .description {
+            margin-bottom: 28px;
+            text-align: center;
+            color: #657187;
+            line-height: 1.6;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #ccd3df;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: 2px solid #8caeff;
+            border-color: #527fe8;
+        }
+
+        button {
+            padding: 13px 18px;
+            border: none;
+            border-radius: 8px;
+            background: #315fe8;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        #shorten-button {
+            width: 100%;
+            margin-top: 14px;
+        }
+
+        #result {
+            margin-top: 24px;
+            overflow-wrap: anywhere;
+        }
+
+        #result a {
+            color: #315fe8;
+        }
+
+        .error {
+            color: #b42318;
+        }
+
+        .success {
+            padding: 16px;
+            border-radius: 8px;
+            background: #eef8f0;
+        }
+
+        #copy-button {
+            margin-top: 12px;
+            background: #26364b;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <h1>URL Shortener</h1>
+
+        <p class="description">
+            Turn a long URL into a short, shareable link.
+        </p>
+
+        <form id="url-form">
+            <label for="original-url">Enter your long URL</label>
+
+            <input
+                type="url"
+                id="original-url"
+                name="url"
+                placeholder="https://example.com/my-long-url"
+                maxlength="2048"
+                required
+            >
+
+            <button type="submit" id="shorten-button">
+                Shorten URL
+            </button>
+        </form>
+
+        <section id="result" aria-live="polite" hidden>
+            <div id="message"></div>
+
+            <button type="button" id="copy-button" hidden>
+                Copy short URL
+            </button>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById("url-form");
+        const input = document.getElementById("original-url");
+        const button = document.getElementById("shorten-button");
+        const result = document.getElementById("result");
+        const message = document.getElementById("message");
+        const copyButton = document.getElementById("copy-button");
+
+        let currentShortUrl = "";
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            result.hidden = false;
+            message.textContent = "Creating your short URL...";
+            message.className = "";
+            copyButton.hidden = true;
+            button.disabled = true;
+
+            try {
+                const response = await fetch("/api/urls", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        url: input.value.trim()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Something went wrong.");
+                }
+
+                currentShortUrl = data.short_url;
+
+                message.className = "success";
+                message.replaceChildren();
+
+                const heading = document.createElement("p");
+                heading.textContent = "Your short URL is ready:";
+
+                const link = document.createElement("a");
+                link.href = currentShortUrl;
+                link.textContent = currentShortUrl;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+
+                message.append(heading, link);
+                copyButton.hidden = false;
+
+            } catch (error) {
+                message.className = "error";
+                message.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        copyButton.addEventListener("click", async function () {
+            try {
+                await navigator.clipboard.writeText(currentShortUrl);
+                message.append(document.createTextNode(" (Copied!)"));
+            } catch {
+                message.append(
+                    document.createTextNode(
+                        " Please copy the link manually."
+                    )
+                );
+            }
+        });
+    </script>
+</body>
+</html>
